@@ -1,9 +1,7 @@
 import argparse
 import os
-import pathlib
-from datetime import datetime
-from time import sleep
-import shutil
+
+from disks import GoogleDisk, YandexDisk
 
 from croniter import croniter
 
@@ -34,26 +32,24 @@ def _parse_args():
     start_parser.add_argument("-f", "--folder", help="", type=folder)
     start_parser.add_argument("-r", "--rate", help="rate cron", type=rate)
     start_parser.add_argument("-d", "--disk", help="[google, yandex]", type=disk)
-    start_parser.add_argument("-t", "--token", help="", type=str)
 
     args = parser.parse_args()
     return args
 
 
-def backup(file_path: pathlib.Path):
-    # once per minute create duplicate of file with timestamp
-    while True:
-        file_name_without_ext = os.path.splitext(file_path.name)[0]
-        new_path = file_path.parent.joinpath(file_name_without_ext + f"{datetime.now()}" + file_path.suffix)
-        shutil.copyfile(file_path, new_path)
-        print(new_path)
-        sleep(60)
-
-
 def main():
     args = _parse_args()
-    print(args)
-    backup(pathlib.Path('test.txt'))
+
+    if args.disk == 'yandex':
+        disk = YandexDisk()
+    elif args.disk == 'google':
+        disk = GoogleDisk()
+    else:
+        disk = YandexDisk()
+
+    disk.try_auth()
+    disk.upload(args.folder)
+    print('done')
 
 
 if __name__ == '__main__':
