@@ -3,12 +3,12 @@ import sys
 
 import yadisk
 
-from .base_disk import BaseDisk
+from disks.base_disk import BaseDisk
 
 
 class YandexDisk(BaseDisk):
     def __init__(self):
-        self.disk = yadisk.YaDisk('id', 'token')
+        self.disk = yadisk.YaDisk('secret', 'secret')
 
     def try_auth(self) -> bool:
         url = self.disk.get_code_url()
@@ -26,7 +26,9 @@ class YandexDisk(BaseDisk):
 
     def upload(self, file_to_upload_path) -> None:
         with open(file_to_upload_path, "rb") as f:
-            self.disk.upload(f, f'/{os.path.basename(file_to_upload_path)}', overwrite=True)
+            print("Uploading")
+            self.disk.upload(f, f'/{os.path.basename(file_to_upload_path)}', overwrite=True, timeout=250)
+            print("Upload finished")
 
     def list_of_files(self) -> list[str]:
         return list(map(lambda x: x.toString, list(self.disk.listdir('/'))))
@@ -38,4 +40,4 @@ class YandexDisk(BaseDisk):
 if __name__ == '__main__':
     yandex_disk = YandexDisk()
     yandex_disk.try_auth()
-    yandex_disk.upload('/Users/georgy/urfu-work/backuper/README.md')
+    yandex_disk.upload(r"C:/Users/marga/.backuper/2023-05-01_13-15-44_apache-maven-3.8.6.zip")
