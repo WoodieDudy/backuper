@@ -1,2 +1,7 @@
 .idea
 client_secrets.json
+tokens.txt
+/logs.txt
+/processes.json
+/secrets.json
+/yandex_application_config.json

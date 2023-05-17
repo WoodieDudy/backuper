@@ -13,3 +13,12 @@ class BaseDisk(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def download(self) -> None: ...
+
+    @abc.abstractmethod
+    def load_secrets(self) -> None: \
+        """
+        Присваивает значение секретов (токенов и т. д.) диску
+        """
+
+    @abc.abstractmethod
+    def check_auth(self) -> bool: ...

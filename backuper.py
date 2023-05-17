@@ -7,7 +7,8 @@ from pathlib import Path
 
 from croniter import croniter
 
-from utils import get_running_processes, save_processes_info
+from disks.yandex_disk import YandexDisk
+from utils import *
 
 
 def _parse_args():
@@ -23,11 +24,6 @@ def _parse_args():
             raise ValueError("Invalid cron format")
         return args_string
 
-    def disk(args_string):
-        if args_string not in ['yandex', 'google']:
-            raise ValueError('Possible choices: [yandex, google]')
-        return args_string
-
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers()
 
@@ -35,7 +31,7 @@ def _parse_args():
     start_parser.set_defaults(cmd='start')
     start_parser.add_argument("-p", "--path", help="", type=path)
     start_parser.add_argument("-c", "--cron", help="backup rate", type=cron)
-    start_parser.add_argument("-d", "--disk", help="[google, yandex]", type=disk)
+    start_parser.add_argument("-d", "--disk", help="[google, yandex]", choices=["yandex", "google"])
     start_parser.add_argument("-n", "--name", help="name of process", type=str)
 
     stop_parser = subparsers.add_parser('stop')
@@ -86,7 +82,16 @@ def main():
         for name, info in running_processes.items():
             print(name)
             for key, value in info.items():
-                print(f'\t{key}: {value}')
+                print(f"\t{key}: {value}")
+
+    elif args.cmd == "auth":
+        if args.disk == "yandex":
+            secret_data = auth_yandex_disk()
+        elif args.disk == "google":
+            secret_data = {}
+
+        save_secrets(args.disk, secret_data)
+
     else:
         raise ValueError('Unknown command')
 

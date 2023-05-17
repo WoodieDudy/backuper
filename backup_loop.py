@@ -2,19 +2,31 @@ import os
 import signal
 import datetime
 import time
-import traceback
-import zipfile
 from pathlib import Path
+import logging
 
 from backuper import _parse_args
-from disks import YandexDisk, GoogleDisk
-from logger import Logger
-from utils import get_running_processes, save_processes_info, cron_parser
+from disks.base_disk import BaseDisk
+from disks.google_disk import GoogleDisk
+from disks.yandex_disk import YandexDisk
+from utils import get_running_processes, save_processes_info, cron_parser, extract_secrets_from_json, make_archive
+
+logging.basicConfig(level=logging.INFO, filename="logs.txt", filemode="w",
+                    format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S')
+
+
+def get_disk(name: str) -> BaseDisk:
+    if name == "yandex":
+        return YandexDisk()
+    elif name == "google":
+        return GoogleDisk()
+    else:
+        raise ValueError("Invalid disk name")
 
 
 def start_process(name: str, path: Path, cron: str, disk_name: str):
-    logger = Logger('logs.txt')
-    logger.log(f"Start process {name} with path {path} and cron {cron}")
+    logging.info(f"Start process {name} with path {path} and cron {cron}")
 
     running_processes = get_running_processes()
     if name in running_processes:
@@ -30,9 +42,7 @@ def start_process(name: str, path: Path, cron: str, disk_name: str):
     else:
         disk = YandexDisk()
 
-    disk.try_auth()
-
-    logger.log(f"Autorized in {disk_name} disk")
+    logging.info(f"Autorized in {disk_name} disk")
     running_processes[name] = {
         'cron': cron,
         'pid': os.getpid(),
@@ -43,51 +53,32 @@ def start_process(name: str, path: Path, cron: str, disk_name: str):
     print(f"Background process started with PID {os.getpid()}")
 
     rate = cron_parser(cron)
-    last_backup_time = datetime.datetime.min
+    last_backup_time = 0
 
-    logger.log(f"Start backup with rate {rate}")
+    logging.info(f"Start backup with rate {rate}")
     while True:
-        if path.is_dir():
-            files_iter = path.rglob('*')
-        else:
-            files_iter = [path]
 
-        files = []
-        for file in files_iter:
-            last_modification_time = int(os.path.getmtime(file))
-            last_modification_time = datetime.datetime.fromtimestamp(last_modification_time)
-            if last_modification_time >= last_backup_time:
-                files.append(file.name)
-
-        if not files:
-            print('empty => skip')
-            last_backup_time = datetime.datetime.now()
+        last_backup_time, archive_path, is_empty = make_archive(path, last_backup_time)
+        logging.info(f"last_backup_time: {last_backup_time}, archive_path: {archive_path}, is_empty: {is_empty}")
+        if is_empty:
+            logging.info(f"empty, sleeping for {rate} seconds")
             time.sleep(rate)
             continue
+        else:
+            logging.info(f"File size: {os.path.getsize(archive_path) / (1024 ** 3):.2f}G")
 
-        archive_name = f"{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{path.name}.zip"
-        archive_dir = Path.home() / '.backuper'
-        archive_dir.mkdir(parents=True, exist_ok=True)
-        archive_path = archive_dir / archive_name
-        os.chdir(path.parent)
-
-        with zipfile.ZipFile(archive_path, mode='w', compression=zipfile.ZIP_DEFLATED) as zf:
-            for full_path in files:
-                relative_path = os.path.relpath(full_path, path)
-                zf.write(relative_path)
-
+        logging.info("Start upload")
         disk.upload(archive_path)
-        logger.log('work done now wait')
-        last_backup_time = datetime.datetime.now()
+        logging.info("work done now wait")
+        last_backup_time = datetime.datetime.now().timestamp()
         time.sleep(rate)
-        logger.log('time out new iter')
+        logging.info("time out new iter")
 
 
 if __name__ == '__main__':
     args = _parse_args()
-    logger = Logger('logs.txt')
     try:
         start_process(args.name, args.path, args.cron, args.disk)
     except Exception as e:
-        tb = traceback.format_exc()
-        logger.log(f"Error: {tb}")
+        # tb = traceback.format_exc()
+        logging.exception(e)

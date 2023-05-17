@@ -4,11 +4,43 @@ import sys
 import yadisk
 
 from disks.base_disk import BaseDisk
+from utils import extract_secrets_from_json
 
 
 class YandexDisk(BaseDisk):
     def __init__(self):
-        self.disk = yadisk.YaDisk('secret', 'secret')
+        app_id, app_secret = self.load_app_configuration()
+        self.disk = yadisk.YaDisk(app_id, app_secret)
+
+    def load_app_configuration(self) -> tuple[str, str]:
+        """
+        Проверяет, авторизовано ли на устройстве приложение для работы с диском
+        (есть ли файл конфигурации с id и секретом приложения).
+        Если нет, запрашивает авторизацию.
+
+        Далее извлекает информацию из файла конфигурации для инициализации диска.
+        :return: кортеж из идентификатора приложения и его секрета
+        """
+
+        config_file_name = "yandex_application_config.json"
+        if not os.path.exists(config_file_name):
+            self.auth_app(config_file_name)
+        with open(config_file_name) as f:
+            data = json.load(f)
+        return data["app_id"], data["app_secret"]
+
+    @staticmethod
+    def auth_app(config_file_name: str):
+        """
+        Авторизация приложения для работы с яндекс диском
+        :param config_file_name: имя файла конфигурации
+        """
+
+        app_id = input("Enter app id: ")
+        app_secret = input("Enter app secret: ")
+        data = {"app_id": app_id, "app_secret": app_secret}
+        with open(config_file_name, "w") as f:
+            json.dump(data, f)
 
     def try_auth(self) -> bool:
         url = self.disk.get_code_url()
