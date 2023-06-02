@@ -3,8 +3,9 @@ import sys
 import json
 
 import yadisk
+from yadisk.exceptions import PathNotFoundError, BadRequestError
 
-from disks.base_disk import BaseDisk
+from .base_disk import BaseDisk
 from utils import extract_secrets_from_json
 
 
@@ -15,6 +16,8 @@ class YandexDisk(BaseDisk):
     def __init__(self):
         app_id, app_secret = self.load_app_configuration()
         self.disk = yadisk.YaDisk(app_id, app_secret)
+
+        self.root_path = "/"
 
     def load_app_configuration(self) -> tuple[str, str]:
         """
@@ -53,7 +56,7 @@ class YandexDisk(BaseDisk):
 
         try:
             response = self.disk.get_token(code)
-        except yadisk.exceptions.BadRequestError:
+        except BadRequestError:
             print("Bad code")
             sys.exit(1)
 
@@ -67,10 +70,16 @@ class YandexDisk(BaseDisk):
             print("Upload finished")
 
     def list_of_files(self) -> list[str]:
-        return list(map(lambda x: x.toString, list(self.disk.listdir("/"))))
+        files = list(self.disk.listdir("/"))
+        names = [resource_obj['name'] for resource_obj in files]
+        return self.filter_files(names)
 
-    def download(self) -> None:
-        pass
+    def download(self, filename: str) -> None:
+        try:
+            self.disk.download(f"{self.root_path}{filename}", filename)
+        except PathNotFoundError:
+            os.remove(filename)
+            raise ValueError("No such file on disk")
 
     def check_auth(self) -> bool:
         return self.disk.check_token()
