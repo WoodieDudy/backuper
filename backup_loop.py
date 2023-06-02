@@ -35,18 +35,14 @@ def start_process(name: str, path: Path, cron: str, disk_name: str):
         except ProcessLookupError:
             pass
 
-    if disk_name == 'yandex':
-        disk = YandexDisk()
-    elif disk_name == 'google':
-        disk = GoogleDisk()
-    else:
-        disk = YandexDisk()
+    disk = get_disk(disk_name)
+    disk.load_secrets()
 
     logging.info(f"Autorized in {disk_name} disk")
     running_processes[name] = {
-        'cron': cron,
-        'pid': os.getpid(),
-        'path': str(path),
+        "cron": cron,
+        "pid": os.getpid(),
+        "path": str(path),
     }
 
     save_processes_info(running_processes)

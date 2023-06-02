@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 
 import yadisk
 
@@ -8,6 +9,9 @@ from utils import extract_secrets_from_json
 
 
 class YandexDisk(BaseDisk):
+    """
+    Класс для работы с яндекс диском
+    """
     def __init__(self):
         app_id, app_secret = self.load_app_configuration()
         self.disk = yadisk.YaDisk(app_id, app_secret)
@@ -59,17 +63,23 @@ class YandexDisk(BaseDisk):
     def upload(self, file_to_upload_path) -> None:
         with open(file_to_upload_path, "rb") as f:
             print("Uploading")
-            self.disk.upload(f, f'/{os.path.basename(file_to_upload_path)}', overwrite=True, timeout=250)
+            self.disk.upload(f, f"/{os.path.basename(file_to_upload_path)}", overwrite=True, timeout=250)
             print("Upload finished")
 
     def list_of_files(self) -> list[str]:
-        return list(map(lambda x: x.toString, list(self.disk.listdir('/'))))
+        return list(map(lambda x: x.toString, list(self.disk.listdir("/"))))
 
     def download(self) -> None:
         pass
+
+    def check_auth(self) -> bool:
+        return self.disk.check_token()
+
+    def load_secrets(self):
+        self.disk.token = extract_secrets_from_json("yandex")["access_token"]
 
 
 if __name__ == '__main__':
     yandex_disk = YandexDisk()
     yandex_disk.try_auth()
-    yandex_disk.upload(r"C:/Users/marga/.backuper/2023-05-01_13-15-44_apache-maven-3.8.6.zip")
+    # yandex_disk.upload("README.md")

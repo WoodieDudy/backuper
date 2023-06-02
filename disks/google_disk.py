@@ -31,7 +31,7 @@ class GoogleDisk(BaseDisk):
         pass
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     google_disk = GoogleDisk()
     google_disk.try_auth()
-    google_disk.upload('README.md')
+    google_disk.upload("README.md")
