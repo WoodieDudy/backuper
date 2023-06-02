@@ -5,10 +5,8 @@ import time
 from pathlib import Path
 import logging
 
-from backuper import _parse_args
-from disks.base_disk import BaseDisk
-from disks.google_disk import GoogleDisk
-from disks.yandex_disk import YandexDisk
+from backup import _parse_args
+from disk_utils import get_disk
 from utils import get_running_processes, save_processes_info, cron_parser, extract_secrets_from_json, make_archive
 
 logging.basicConfig(level=logging.INFO, filename="logs.txt", filemode="w",
@@ -16,16 +14,15 @@ logging.basicConfig(level=logging.INFO, filename="logs.txt", filemode="w",
                     datefmt='%Y-%m-%d %H:%M:%S')
 
 
-def get_disk(name: str) -> BaseDisk:
-    if name == "yandex":
-        return YandexDisk()
-    elif name == "google":
-        return GoogleDisk()
-    else:
-        raise ValueError("Invalid disk name")
+def start_process(name: str, path: Path, cron: str, disk_name: str) -> None:
+    """
+    Запускает отдельный процесс для бэкапа
 
-
-def start_process(name: str, path: Path, cron: str, disk_name: str):
+    :param name: имя для процесса
+    :param path: путь файла для бэкапа
+    :param cron: периодичность в формате крон
+    :param disk_name: название хранилища
+    """
     logging.info(f"Start process {name} with path {path} and cron {cron}")
 
     running_processes = get_running_processes()
@@ -53,7 +50,6 @@ def start_process(name: str, path: Path, cron: str, disk_name: str):
 
     logging.info(f"Start backup with rate {rate}")
     while True:
-
         last_backup_time, archive_path, is_empty = make_archive(path, last_backup_time)
         logging.info(f"last_backup_time: {last_backup_time}, archive_path: {archive_path}, is_empty: {is_empty}")
         if is_empty:
@@ -72,9 +68,9 @@ def start_process(name: str, path: Path, cron: str, disk_name: str):
 
 
 if __name__ == '__main__':
-    args = _parse_args()
     try:
+        args = _parse_args()
+        logging.info(args)
         start_process(args.name, args.path, args.cron, args.disk)
     except Exception as e:
-        # tb = traceback.format_exc()
         logging.exception(e)

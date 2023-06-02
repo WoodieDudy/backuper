@@ -5,3 +5,4 @@ tokens.txt
 /processes.json
 /secrets.json
 /yandex_application_config.json
+/setup.py

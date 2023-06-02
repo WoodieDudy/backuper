@@ -1,4 +1,5 @@
 import abc
+import re
 
 
 class BaseDisk(metaclass=abc.ABCMeta):
@@ -25,7 +26,7 @@ class BaseDisk(metaclass=abc.ABCMeta):
         """
 
     @abc.abstractmethod
-    def download(self) -> None: \
+    def download(self, filename: str) -> None: \
         """
         Скачивает запрошенный файл с диска
         """
@@ -37,4 +38,18 @@ class BaseDisk(metaclass=abc.ABCMeta):
         """
 
     @abc.abstractmethod
-    def check_auth(self) -> bool: ...
+    def check_auth(self) -> bool: \
+        """
+        Проверяет, авторизован ли пользователь
+        :return: True, если да; False, если нет
+        """
+
+
+    @staticmethod
+    def filter_files(files: list) -> list:
+        """
+        Выделяет среди файлов на диске только бэкапы
+        :param files: список всех файлов в корневой директории диска
+        :return: отфильтрованный список файлов
+        """
+        return list(filter(lambda x: re.fullmatch(r"\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}_.*.zip", x), files))
