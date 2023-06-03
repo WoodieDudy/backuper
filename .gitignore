@@ -8,3 +8,5 @@ tokens.txt
 /setup.py
 /backuper.egg-info/
 /dist/
+__pycache__
+.DS_Store
