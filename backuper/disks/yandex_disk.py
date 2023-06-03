@@ -6,7 +6,7 @@ import yadisk
 from yadisk.exceptions import PathNotFoundError, BadRequestError
 
 from .base_disk import BaseDisk
-from utils import extract_secrets_from_json
+from ..utils import extract_secrets_from_json
 
 
 class YandexDisk(BaseDisk):

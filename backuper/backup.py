@@ -2,10 +2,11 @@ import argparse
 import signal
 import subprocess
 import sys
+from pkg_resources import resource_filename
 
-from disk_utils import get_disk
-from disks.yandex_disk import YandexDisk
-from utils import *
+from .disk_utils import get_disk
+from .disks.yandex_disk import YandexDisk
+from .utils import *
 
 
 def _parse_args():
@@ -94,13 +95,14 @@ def start_backup(disk: str, cron: str, process_name: str, path: str) -> None:
         return
 
     print("start")
+    backup_loop_path = resource_filename('backuper', 'backup_loop.py')
     new_process = subprocess.Popen(
         [
-            sys.executable, "backup_loop.py", "start", "-p", str(path),
+            sys.executable, backup_loop_path, "start", "-p", str(path),
             "-c", cron, "-d", disk, "-n", process_name
         ],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        # stdout=subprocess.DEVNULL,
+        # stderr=subprocess.DEVNULL,
         start_new_session=True  # TODO мб не создавать два раза
     )
     print(new_process.pid)

@@ -5,11 +5,11 @@ import time
 from pathlib import Path
 import logging
 
-from backup import _parse_args
-from disk_utils import get_disk
-from utils import get_running_processes, save_processes_info, cron_parser, extract_secrets_from_json, make_archive
+from backuper.backup import _parse_args
+from backuper.disk_utils import get_disk
+from backuper.utils import get_running_processes, save_processes_info, cron_parser, make_archive
 
-logging.basicConfig(level=logging.INFO, filename="logs.txt", filemode="w",
+logging.basicConfig(level=logging.INFO, filename="/Users/georgy/Trash/logs.txt", filemode="w",
                     format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
 
@@ -68,6 +68,7 @@ def start_process(name: str, path: Path, cron: str, disk_name: str) -> None:
 
 
 if __name__ == '__main__':
+    logging.info("Start backup loop")
     try:
         args = _parse_args()
         logging.info(args)

@@ -1,6 +1,6 @@
-from disks.base_disk import BaseDisk
-from disks.google_disk import GoogleDisk
-from disks.yandex_disk import YandexDisk
+from .disks.base_disk import BaseDisk
+from .disks.google_disk import GoogleDisk
+from .disks.yandex_disk import YandexDisk
 
 
 def get_disk(name: str) -> BaseDisk:

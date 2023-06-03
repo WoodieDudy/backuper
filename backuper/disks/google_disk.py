@@ -27,7 +27,7 @@ class GoogleDisk(BaseDisk):
     def list_of_files(self) -> list[str]:
         pass
 
-    def download(self) -> None:
+    def download(self, filename: str) -> None:
         pass
 
 

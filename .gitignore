@@ -6,3 +6,5 @@ tokens.txt
 /secrets.json
 /yandex_application_config.json
 /setup.py
+/backuper.egg-info/
+/dist/
