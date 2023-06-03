@@ -7,7 +7,7 @@ import logging
 
 from backuper.backup import _parse_args
 from backuper.disk_utils import get_disk
-from backuper.utils import get_running_processes, save_processes_info, cron_parser, make_archive
+from backuper.utils import *
 
 logging.basicConfig(level=logging.INFO, filename="/Users/georgy/Trash/logs.txt", filemode="w",
                     format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
@@ -47,21 +47,27 @@ def start_process(name: str, path: Path, cron: str, disk_name: str) -> None:
 
     rate = cron_parser(cron)
     last_backup_time = 0
+    backuped_files = set()
 
     logging.info(f"Start backup with rate {rate}")
     while True:
-        last_backup_time, archive_path, is_empty = make_archive(path, last_backup_time)
-        logging.info(f"last_backup_time: {last_backup_time}, archive_path: {archive_path}, is_empty: {is_empty}")
-        if is_empty:
+        files_in_path = get_files_from_path(path)
+        new_files = files_in_path - backuped_files
+
+        updated_files = filter_files_by_time(files_in_path, last_backup_time)
+        files_to_archive = updated_files | new_files
+        if not files_to_archive:
             logging.info(f"empty, sleeping for {rate} seconds")
             time.sleep(rate)
             continue
-        else:
-            logging.info(f"File size: {os.path.getsize(archive_path) / (1024 ** 3):.2f}G")
+        backuped_files |= files_to_archive
+
+        archive_path = make_archive(path, files_to_archive)
+        logging.info(f"File size: {os.path.getsize(archive_path) / (1024 ** 3):.2f}G")
 
         logging.info("Start upload")
         disk.upload(archive_path)
-        logging.info("work done now wait")
+        logging.info(f"file uploaded, sleeping for {rate} seconds")
         last_backup_time = datetime.datetime.now().timestamp()
         time.sleep(rate)
         logging.info("time out new iter")

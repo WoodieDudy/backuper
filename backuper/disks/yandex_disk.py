@@ -1,12 +1,11 @@
 import os
 import sys
-import json
 
 import yadisk
 from yadisk.exceptions import PathNotFoundError, BadRequestError
 
 from .base_disk import BaseDisk
-from ..utils import extract_secrets_from_json
+from ..utils import extract_secrets_from_json, save_secrets
 
 
 class YandexDisk(BaseDisk):
@@ -29,25 +28,24 @@ class YandexDisk(BaseDisk):
         :return: кортеж из идентификатора приложения и его секрета
         """
 
-        config_file_name = "yandex_application_config.json"
-        if not os.path.exists(config_file_name):
-            self.auth_app(config_file_name)
-        with open(config_file_name) as f:
-            data = json.load(f)
-        return data["app_id"], data["app_secret"]
+        try:
+            secrets = extract_secrets_from_json("yandex")
+            app_info = secrets["app_info"]
+        except KeyError:
+            self.auth_app()
+            app_info = extract_secrets_from_json("yandex")["app_info"]
+
+        return app_info["app_id"], app_info["app_secret"]
 
     @staticmethod
-    def auth_app(config_file_name: str):
+    def auth_app():
         """
         Авторизация приложения для работы с яндекс диском
-        :param config_file_name: имя файла конфигурации
         """
 
         app_id = input("Enter app id: ")
         app_secret = input("Enter app secret: ")
-        data = {"app_id": app_id, "app_secret": app_secret}
-        with open(config_file_name, "w") as f:
-            json.dump(data, f)
+        save_secrets("yandex", {"app_info": {"app_id": app_id, "app_secret": app_secret}})
 
     def try_auth(self) -> bool:
         url = self.disk.get_code_url()

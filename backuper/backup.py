@@ -101,8 +101,8 @@ def start_backup(disk: str, cron: str, process_name: str, path: str) -> None:
             sys.executable, backup_loop_path, "start", "-p", str(path),
             "-c", cron, "-d", disk, "-n", process_name
         ],
-        # stdout=subprocess.DEVNULL,
-        # stderr=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
         start_new_session=True  # TODO мб не создавать два раза
     )
     print(new_process.pid)
@@ -184,6 +184,7 @@ def download_file_from_disk(disk: str, name: str) -> None:
 
 def main():
     args = _parse_args()
+    make_app_dirs()
 
     if args.cmd == "start":
         start_backup(args.disk, args.cron, args.name, args.path)
