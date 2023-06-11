@@ -4,8 +4,7 @@ import subprocess
 import sys
 from pkg_resources import resource_filename
 
-from .disk_utils import get_disk
-from .disks.yandex_disk import YandexDisk
+from .disk_utils import get_disk, is_disk_authed
 from .utils import *
 
 
@@ -14,7 +13,6 @@ def _parse_args():
         res_path = Path(args_string)
         if not res_path.exists():
             raise ValueError("This path doesn't exist")
-        print(res_path)
         return res_path
 
     def cron(args_string):
@@ -56,30 +54,6 @@ def _parse_args():
     return args
 
 
-def disk_authed(disk_name: str) -> bool:
-    """
-    Проверка, авторизован ли пользователь в диске
-
-    :param disk_name: название хранилища для проверки
-    :return: True, если да; False, если нет.
-    """
-    if extract_secrets_from_json(disk_name):
-        return True
-    return False
-
-
-def auth_yandex_disk() -> dict:
-    """
-    Авторизация в яндекс диске
-
-    :return: словарь с токеном доступа
-    """
-    ya_disk = YandexDisk()
-    ya_disk.try_auth()
-    secret = ya_disk.disk.token
-    return {"access_token": secret}
-
-
 def start_backup(disk: str, cron: str, process_name: str, path: str) -> None:
     """
     Запускает процесс бэкапа в хранилище
@@ -89,7 +63,7 @@ def start_backup(disk: str, cron: str, process_name: str, path: str) -> None:
     :param process_name: имя, которое мы даём процессу
     :param path: путь к файлу, который мы хотим бэкапить
     """
-    if not disk_authed(disk):
+    if not is_disk_authed(get_disk(disk).__name__):
         print("You're not authorized in disk")
         print("Please, run 'python backup.py auth -d <disk>")
         return
@@ -103,7 +77,7 @@ def start_backup(disk: str, cron: str, process_name: str, path: str) -> None:
         ],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
-        start_new_session=True  # TODO мб не создавать два раза
+        start_new_session=True
     )
     print(new_process.pid)
 
@@ -129,6 +103,9 @@ def stop_backup(name: str) -> None:
 
 
 def get_backups() -> None:
+    """
+    Печатает список запущенных фоновых бэкапов
+    """
     running_processes = get_running_processes()
     if not running_processes:
         print("No running processes")
@@ -146,12 +123,7 @@ def auth(disk: str) -> None:
 
     :param disk: хранилище, в котором планируется авторизоваться
     """
-    if disk == "yandex":
-        secret_data = auth_yandex_disk()
-    elif disk == "google":
-        secret_data = {}
-
-    save_secrets(disk, secret_data)
+    get_disk(disk)()
 
 
 def get_files_from_disk(disk: str):
@@ -160,8 +132,7 @@ def get_files_from_disk(disk: str):
 
     :param disk: хранилище, из которого нужно получить список
     """
-    disk = get_disk(disk)
-    disk.load_secrets()
+    disk = get_disk(disk)()
     for file in disk.list_of_files():
         print(file)
 
@@ -174,8 +145,7 @@ def download_file_from_disk(disk: str, name: str) -> None:
     :param name: имя файла для скачивания
     """
 
-    disk = get_disk(disk)
-    disk.load_secrets()
+    disk = get_disk(disk)()
     try:
         disk.download(name)
     except ValueError:

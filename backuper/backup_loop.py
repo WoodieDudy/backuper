@@ -1,15 +1,13 @@
-import os
 import signal
-import datetime
 import time
-from pathlib import Path
 import logging
 
 from backuper.backup import _parse_args
 from backuper.disk_utils import get_disk
 from backuper.utils import *
+from backuper.defs import logs_file
 
-logging.basicConfig(level=logging.INFO, filename="/Users/georgy/Trash/logs.txt", filemode="w",
+logging.basicConfig(level=logging.INFO, filename=logs_file, filemode="w",
                     format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
 
@@ -32,8 +30,7 @@ def start_process(name: str, path: Path, cron: str, disk_name: str) -> None:
         except ProcessLookupError:
             pass
 
-    disk = get_disk(disk_name)
-    disk.load_secrets()
+    disk = get_disk(disk_name)()
 
     logging.info(f"Autorized in {disk_name} disk")
     running_processes[name] = {
@@ -52,10 +49,14 @@ def start_process(name: str, path: Path, cron: str, disk_name: str) -> None:
     logging.info(f"Start backup with rate {rate}")
     while True:
         files_in_path = get_files_from_path(path)
+        logging.info(f"{files_in_path=}")
         new_files = files_in_path - backuped_files
-
+        logging.info(f"{new_files=}")
         updated_files = filter_files_by_time(files_in_path, last_backup_time)
+        logging.info(f"{updated_files=}")
         files_to_archive = updated_files | new_files
+        logging.info(f"{files_to_archive}")
+
         if not files_to_archive:
             logging.info(f"empty, sleeping for {rate} seconds")
             time.sleep(rate)
