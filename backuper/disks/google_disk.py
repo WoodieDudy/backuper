@@ -10,7 +10,7 @@ from .base_disk import BaseDisk
 from backuper.defs import google_secrets_file, google_credentials
 
 
-class GoogleDisk(BaseDisk):
+class GoogleDisk(BaseDisk): # pragma: no cover
     """
     Класс для работы с Google Drive
     """

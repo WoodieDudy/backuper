@@ -9,3 +9,5 @@ tokens.txt
 /dist/
 __pycache__
 .DS_Store
+/.coveragerc
+/.coverage

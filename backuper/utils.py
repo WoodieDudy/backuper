@@ -2,12 +2,11 @@ import json
 import os
 import zipfile
 import datetime
+from json import JSONDecodeError
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Optional
 
-from croniter import croniter
-
-from .defs import processes_info_file, secrets_file, archives_dir, root_save
+from .defs import secrets_file, archives_dir, root_save
 
 
 def make_app_dirs() -> None:
@@ -18,31 +17,9 @@ def make_app_dirs() -> None:
     os.makedirs(archives_dir, exist_ok=True)
 
 
-def get_running_processes() -> dict:
-    """
-    Парсит файл с информацией о запущенных программой фоновых процессах
-    :return: словарь процессов
-    """
-    try:
-        with open(processes_info_file) as f:
-            data = json.load(f)
-    except (FileNotFoundError, json.decoder.JSONDecodeError):
-        data = {}
-    return data
-
-
-def save_processes_info(data: dict) -> None:
-    """
-    Сохраняет информацию о запущенном процессе
-    :param data: словарь с информацией о бэкапе
-    """
-    with open(processes_info_file, "w") as f:
-        json.dump(data, f)
-
-
 def extract_secrets_from_json(disk: str = None) -> dict:
     """
-    Извлекает из файла информацию, необходимаю для работы приложения
+    Извлекает из файла информацию, необходимую для работы приложения
     :param disk: имя диска
     """
     try:
@@ -51,14 +28,14 @@ def extract_secrets_from_json(disk: str = None) -> dict:
             return {}
         with open(secrets_file) as f:
             data: dict = json.load(f)
-    except FileNotFoundError:
+    except (FileNotFoundError, JSONDecodeError):
         return {}
     if disk is not None:
         return data.get(disk, {})
     return data
 
 
-def save_secrets(disk: str, secrets: dict | None) -> None:
+def save_secrets(disk: str, secrets: Optional[dict]) -> None:
     """
     Сохраняет в файл информацию, необходимую для работы приложения
     :param disk: имя диска
@@ -78,17 +55,27 @@ def save_secrets(disk: str, secrets: dict | None) -> None:
         json.dump(data, f)
 
 
-def cron_parser(cron) -> int:
+def cron_parser(cron_expression):
     """
     Парсит крон для извлечения периодичности бэкапа
     :param cron: значение строки cron
     :return: периодичность в секундах
     """
-    now = datetime.datetime.now()
-    cron = croniter(cron, now)
-    cron.get_next(datetime.datetime)
-    next_time = cron.get_next(datetime.datetime)
-    return (next_time - now).total_seconds()
+
+    cron_parts = cron_expression.split()
+
+    if cron_parts[0] == '*':
+        return 60
+    elif cron_parts[0].startswith('*/'):
+        minutes = int(cron_parts[0][2:])
+        return minutes * 60
+    elif cron_parts[1] == '*':
+        return 60 * 60
+    elif cron_parts[1].startswith('*/'):
+        hours = int(cron_parts[1][2:])
+        return hours * 60 * 60
+    else:
+        raise ValueError("Unsupported cron format")
 
 
 def make_archive(root_path: Path, files: list) -> str:

@@ -1,84 +1,69 @@
-import signal
 import time
 import logging
 
+from backuper.archive_maker import ArchiveMaker
 from backuper.backup import _parse_args
+from backuper.controller import Controller, InfiniteController
 from backuper.disk_utils import get_disk
+from backuper.disks.base_disk import BaseDisk
+from backuper.processes_repository import ProcessesRepository
 from backuper.utils import *
-from backuper.defs import logs_file
+from backuper.defs import logs_file, processes_info_file
 
 logging.basicConfig(level=logging.INFO, filename=logs_file, filemode="w",
                     format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
 
 
-def start_process(name: str, path: Path, cron: str, disk_name: str) -> None:
+def start_process(
+        name: str, path: Path, cron: str,
+        disk: BaseDisk, backup_controller: Controller,
+        processes_repository: ProcessesRepository
+) -> None:
     """
     Запускает отдельный процесс для бэкапа
 
+    :param disk:
     :param name: имя для процесса
     :param path: путь файла для бэкапа
     :param cron: периодичность в формате крон
     :param disk_name: название хранилища
     """
+
     logging.info(f"Start process {name} with path {path} and cron {cron}")
 
-    running_processes = get_running_processes()
-    if name in running_processes:
-        try:
-            os.kill(running_processes[name]['pid'], signal.SIGTERM)
-        except ProcessLookupError:
-            pass
+    if name in processes_repository:
+        processes_repository.stop_process(name)
 
-    disk = get_disk(disk_name)()
-
-    logging.info(f"Autorized in {disk_name} disk")
-    running_processes[name] = {
+    processes_repository.add_process(name, {
         "cron": cron,
         "pid": os.getpid(),
         "path": str(path),
-    }
+    })
 
-    save_processes_info(running_processes)
-    print(f"Background process started with PID {os.getpid()}")
-
+    archive_maker = ArchiveMaker(path)
     rate = cron_parser(cron)
-    last_backup_time = 0
-    backuped_files = set()
 
     logging.info(f"Start backup with rate {rate}")
-    while True:
-        files_in_path = get_files_from_path(path)
-        logging.info(f"{files_in_path=}")
-        new_files = files_in_path - backuped_files
-        logging.info(f"{new_files=}")
-        updated_files = filter_files_by_time(files_in_path, last_backup_time)
-        logging.info(f"{updated_files=}")
-        files_to_archive = updated_files | new_files
-        logging.info(f"{files_to_archive}")
-
-        if not files_to_archive:
-            logging.info(f"empty, sleeping for {rate} seconds")
+    while backup_controller.should_continue():
+        archive_path = archive_maker.make_fresh_archive()
+        if archive_path is None:
+            print(archive_path)
             time.sleep(rate)
             continue
-        backuped_files |= files_to_archive
-
-        archive_path = make_archive(path, files_to_archive)
-        logging.info(f"File size: {os.path.getsize(archive_path) / (1024 ** 3):.2f}G")
-
-        logging.info("Start upload")
         disk.upload(archive_path)
-        logging.info(f"file uploaded, sleeping for {rate} seconds")
-        last_backup_time = datetime.datetime.now().timestamp()
         time.sleep(rate)
-        logging.info("time out new iter")
 
 
-if __name__ == '__main__':
+if __name__ == '__main__':  # pragma: no cover
     logging.info("Start backup loop")
     try:
         args = _parse_args()
         logging.info(args)
-        start_process(args.name, args.path, args.cron, args.disk)
+        disk = get_disk(args.disk)()
+        logging.info(f"Authorized in {disk} disk")
+        processes_repository = ProcessesRepository(processes_info_file)
+        controller = InfiniteController()
+        start_process(args.name, args.path, args.cron, disk, controller, processes_repository)
     except Exception as e:
         logging.exception(e)

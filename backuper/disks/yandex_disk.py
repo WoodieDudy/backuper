@@ -7,7 +7,7 @@ from .base_disk import BaseDisk
 from ..utils import extract_secrets_from_json
 
 
-class YandexDisk(BaseDisk):
+class YandexDisk(BaseDisk):  # pragma: no cover
     """
     Класс для работы с яндекс диском
     """

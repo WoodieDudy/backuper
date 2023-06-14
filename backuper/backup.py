@@ -1,14 +1,16 @@
 import argparse
-import signal
 import subprocess
 import sys
+
 from pkg_resources import resource_filename
 
+from backuper.defs import processes_info_file
+from backuper.processes_repository import ProcessesRepository
 from .disk_utils import get_disk, is_disk_authed
 from .utils import *
 
 
-def _parse_args():
+def _parse_args():  # pragma: no cover
     def path(args_string):
         res_path = Path(args_string)
         if not res_path.exists():
@@ -16,9 +18,11 @@ def _parse_args():
         return res_path
 
     def cron(args_string):
-        if not croniter.is_valid(args_string):
+        try:
+            cron_parser(args_string)
+            return args_string
+        except ValueError:
             raise ValueError("Invalid cron format")
-        return args_string
 
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers()
@@ -88,25 +92,17 @@ def stop_backup(name: str) -> None:
 
     :param name: имя процесса, который нужно остановить
     """
-    running_processes = get_running_processes()
-    if name not in running_processes:
-        print(f"Error: Process {name} not found")
-        return
-    pid = running_processes[name]["pid"]
-    try:
-        os.kill(pid, signal.SIGTERM)
-        print(f"Background process with PID {pid} stopped.")
-        del running_processes[name]
-    except OSError:
-        print(f"Error: Unable to stop process with PID {pid}")
-    save_processes_info(running_processes)
+    processes_repository = ProcessesRepository(processes_info_file)
+    processes_repository.stop_process(name)
 
 
 def get_backups() -> None:
     """
     Печатает список запущенных фоновых бэкапов
     """
-    running_processes = get_running_processes()
+    processes_repository = ProcessesRepository(processes_info_file)
+
+    running_processes = processes_repository.load()
     if not running_processes:
         print("No running processes")
         return
@@ -152,7 +148,7 @@ def download_file_from_disk(disk: str, name: str) -> None:
         print("No such file on disk")
 
 
-def main():
+def main():  # pragma: no cover
     args = _parse_args()
     make_app_dirs()
 
